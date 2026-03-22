@@ -1,0 +1,1678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TikTok Clone</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/graphql-request@6/build/browser/index.js"></script>
+</head>
+<body class="min-h-screen bg-black text-white">
+
+  <!-- ───────── AUTH SECTION ───────── -->
+  <div id="auth-section" class="min-h-screen flex items-center justify-center">
+    <div class="w-full max-w-sm">
+
+      <!-- Tabs -->
+      <div class="flex mb-6">
+        <button id="tab-login" onclick="showTab('login')"
+          class="flex-1 py-2 text-white font-semibold border-b-2 border-pink-500">Login</button>
+        <button id="tab-signup" onclick="showTab('signup')"
+          class="flex-1 py-2 text-zinc-400 font-semibold border-b-2 border-zinc-700">Sign Up</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" onsubmit="handleLogin(event)" class="bg-zinc-900 p-8 rounded-2xl flex flex-col gap-4">
+        <h1 class="text-white text-2xl font-bold text-center">Login</h1>
+        <p id="login-error" class="text-red-400 text-sm hidden"></p>
+        <input id="login-identifier" type="text" placeholder="Email or Username" required autocomplete="username"
+          class="bg-zinc-800 text-white rounded-lg px-4 py-2 outline-none" />
+        <input id="login-password" type="password" placeholder="Password" required autocomplete="current-password"
+          class="bg-zinc-800 text-white rounded-lg px-4 py-2 outline-none" />
+        <button type="submit" id="login-btn"
+          class="bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 rounded-lg disabled:opacity-50">
+          Login
+        </button>
+        <button type="button" onclick="skipAuth()"
+          class="text-zinc-400 hover:text-white text-sm text-center py-1">Skip for now →</button>
+      </form>
+
+      <!-- Signup Form -->
+      <form id="signup-form" onsubmit="handleSignup(event)" class="bg-zinc-900 p-8 rounded-2xl flex flex-col gap-4 hidden">
+        <h1 class="text-white text-2xl font-bold text-center">Sign Up</h1>
+        <p id="signup-error" class="text-red-400 text-sm hidden"></p>
+        <p id="signup-success" class="text-green-400 text-sm hidden"></p>
+
+        <!-- Profile photo picker -->
+        <div class="flex flex-col items-center gap-2">
+          <div onclick="document.getElementById('avatar-input').click()"
+            class="w-20 h-20 rounded-full bg-zinc-700 flex items-center justify-center cursor-pointer overflow-hidden border-2 border-zinc-600 hover:border-pink-500 transition">
+            <img id="avatar-preview" src="" alt="" class="w-full h-full object-cover hidden" />
+            <span id="avatar-placeholder" class="text-zinc-400 text-xs text-center px-1">Add Photo</span>
+          </div>
+          <input id="avatar-input" type="file" accept="image/*" class="hidden" onchange="previewAvatar(event)" />
+        </div>
+
+        <input id="signup-username" type="text" placeholder="Username (letters, numbers, _ only)" required autocomplete="username"
+          oninput="validateUsername(this)"
+          class="bg-zinc-800 text-white rounded-lg px-4 py-2 outline-none" />
+        <p id="username-hint" class="text-red-400 text-xs -mt-2 hidden">No spaces or special characters allowed</p>
+        <input id="signup-email" type="email" placeholder="Email" required autocomplete="email"
+          class="bg-zinc-800 text-white rounded-lg px-4 py-2 outline-none" />
+        <input id="signup-password" type="password" placeholder="Password (min 6 chars)" required autocomplete="new-password"
+          class="bg-zinc-800 text-white rounded-lg px-4 py-2 outline-none" />
+        <textarea id="signup-bio" placeholder="Bio (optional)" rows="2"
+          class="bg-zinc-800 text-white rounded-lg px-4 py-2 outline-none resize-none"></textarea>
+
+        <!-- Account Type -->
+        <div class="flex gap-3">
+          <button type="button" id="type-reels" onclick="selectAccountType('reels')"
+            class="flex-1 flex flex-col items-center gap-1 border-2 border-pink-500 rounded-xl p-3 bg-pink-500/10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0 1 21 8.723v6.554a1 1 0 0 1-1.447.894L15 14M3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z" />
+            </svg>
+            <span class="text-white text-xs font-semibold">Only Reels</span>
+            <span class="text-zinc-400 text-xs text-center">Watch reels only</span>
+          </button>
+          <button type="button" id="type-professional" onclick="selectAccountType('professional')"
+            class="flex-1 flex flex-col items-center gap-1 border-2 border-zinc-600 rounded-xl p-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A9 9 0 1 1 18.88 17.804M15 11a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+            </svg>
+            <span class="text-white text-xs font-semibold">Professional</span>
+            <span class="text-zinc-400 text-xs text-center">Upload, followers & more</span>
+          </button>
+        </div>
+
+        <button type="submit" id="signup-btn"
+          class="bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 rounded-lg disabled:opacity-50">
+          Sign Up
+        </button>
+        <button type="button" onclick="skipAuth()"
+          class="text-zinc-400 hover:text-white text-sm text-center py-1">Skip for now →</button>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ───────── UPLOAD SECTION ───────── -->
+  <div id="upload-section" class="hidden">
+
+    <!-- Header -->
+    <header class="flex items-center justify-center px-6 py-4 border-b border-zinc-800 relative">
+      <h1 class="text-xl font-bold text-pink-500">🎵 TikTok Clone</h1>
+      <button id="guest-back-btn" onclick="guestBack()" class="hidden absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" />
+        </svg>
+      </button>
+    </header>
+
+    <!-- Upload progress -->
+    <div id="progress-bar-wrap" class="hidden px-6 pt-4">
+      <div class="w-full bg-zinc-800 rounded-full h-2">
+        <div id="progress-bar" class="bg-pink-500 h-2 rounded-full transition-all" style="width:0%"></div>
+      </div>
+      <p id="progress-text" class="text-zinc-400 text-xs mt-1">Uploading...</p>
+    </div>
+
+    <p id="upload-error" class="text-red-400 text-sm text-center mt-4 hidden"></p>
+    <input id="file-input" type="file" accept="video/*" class="hidden" onchange="handleUpload(event)" />
+
+    <!-- Home Feed (TikTok-style snap scroll) -->
+    <div id="home-feed" class="fixed inset-0 bg-zinc-950 overflow-y-scroll" style="top:57px;bottom:64px;scrollbar-width:none;-ms-overflow-style:none">
+      <div id="reels-feed"></div>
+    </div>
+
+    <!-- Reels Viewer (fullscreen TikTok style) -->
+    <div id="reels-page" class="hidden fixed inset-0 bg-black z-40 overflow-y-scroll snap-y snap-mandatory" style="scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch">
+      <div id="reels-viewer-feed"></div>
+    </div>
+
+    <!-- Instagram-style Comment Sheet (shared) -->
+    <div id="comment-sheet-backdrop" onclick="closeCommentSheet()" class="hidden fixed inset-0 bg-black/60 z-50 transition-opacity duration-300"></div>
+    <div id="comment-sheet" class="hidden fixed bottom-0 left-0 right-0 bg-zinc-900 rounded-t-2xl z-50 flex flex-col transform translate-y-full transition-transform duration-300" style="max-height:75vh">
+      <div class="w-12 h-1 bg-zinc-600 rounded-full mx-auto mt-2 mb-3"></div>
+      <div class="flex items-center justify-between px-4 py-2 border-b border-zinc-800">
+        <span class="text-white font-semibold text-lg">Comments</span>
+        <button onclick="closeCommentSheet()" class="text-zinc-400 hover:text-white p-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="comment-sheet-list" class="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4"></div>
+      <div class="flex items-center gap-3 px-4 py-4 border-t border-zinc-800 bg-zinc-900">
+        <img id="comment-sheet-my-avatar" src="" class="w-8 h-8 rounded-full object-cover bg-zinc-700 flex-shrink-0" />
+        <input id="comment-sheet-input" type="text" placeholder="Add a comment..."
+          class="flex-1 bg-zinc-800 text-white text-sm rounded-full px-4 py-3 outline-none" />
+        <button id="comment-sheet-post-btn" class="text-pink-500 font-semibold text-sm px-4 py-2 bg-pink-500/10 rounded-full hover:bg-pink-500/20">Post</button>
+      </div>
+    </div>
+
+    <!-- Search Page -->
+    <div id="search-page" class="hidden fixed inset-0 overflow-y-auto bg-zinc-950" style="top:57px;bottom:64px;scrollbar-width:none;-ms-overflow-style:none">
+      <div class="max-w-md mx-auto px-4 py-4">
+        <div class="relative mb-4">
+          <input id="search-input" type="text" placeholder="Search users..." oninput="searchUsers()"
+            class="w-full bg-zinc-800 text-white rounded-xl px-4 py-3 pl-10 outline-none placeholder-zinc-500" />
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-zinc-500 absolute left-3 top-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+        </div>
+        <div id="search-results" class="flex flex-col gap-3"></div>
+      </div>
+    </div>
+
+    <!-- Account Page -->
+    <div id="account-page" class="hidden fixed inset-0 overflow-y-auto bg-zinc-950" style="top:57px;bottom:64px;scrollbar-width:none;-ms-overflow-style:none"><div class="max-w-md mx-auto px-4 py-6">
+      <div class="flex flex-col items-center gap-3 bg-zinc-900 rounded-2xl p-6">
+        <div class="relative">
+          <img id="account-avatar" src="" alt="" class="w-20 h-20 rounded-full object-cover bg-zinc-700" />
+        </div>
+        <h2 id="account-username" class="text-white text-xl font-bold"></h2>
+        <p id="account-bio" class="text-zinc-400 text-sm text-center"></p>
+        <span id="account-type-badge" class="text-xs px-3 py-1 rounded-full bg-pink-500/20 text-pink-400"></span>
+        <div class="flex gap-6 mt-2">
+          <div class="flex flex-col items-center">
+            <span id="account-reels-count" class="text-white font-bold text-lg">0</span>
+            <span class="text-zinc-400 text-xs">Reels</span>
+          </div>
+          <div class="flex flex-col items-center">
+            <span id="account-followers-count" class="text-white font-bold text-lg">0</span>
+            <span class="text-zinc-400 text-xs">Followers</span>
+          </div>
+          <div class="flex flex-col items-center">
+            <span id="account-following-count" class="text-white font-bold text-lg">0</span>
+            <span class="text-zinc-400 text-xs">Following</span>
+          </div>
+        </div>
+        <button onclick="showEditProfile()"
+          class="mt-2 w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded-xl">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Edit Profile
+        </button>
+        <div id="stats-btn-wrap" class="hidden w-full">
+          <button onclick="showStats()"
+            class="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded-xl">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Stats
+          </button>
+        </div>
+        <button onclick="handleLogout()"
+          class="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded-xl">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" />
+          </svg>
+          Logout
+        </button>
+      </div>
+      <!-- Reels Grid -->
+      <div id="account-reels-grid" class="grid grid-cols-3 gap-1 mt-4"></div>
+    </div></div>
+
+    <!-- User Profile Page -->
+    <div id="user-profile-page" class="hidden fixed inset-0 bg-zinc-950 z-50 flex flex-col" style="scrollbar-width:none">
+      <div class="flex items-center gap-3 px-4 py-4 border-b border-zinc-800">
+        <button onclick="closeUserProfile()" class="text-zinc-400 hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+        </button>
+        <span id="user-profile-username" class="text-white font-bold text-lg"></span>
+      </div>
+      <div class="overflow-y-auto flex-1" style="scrollbar-width:none">
+        <!-- Profile info -->
+        <div class="flex flex-col items-center gap-2 px-4 py-5">
+          <img id="user-profile-avatar" src="" class="w-20 h-20 rounded-full object-cover bg-zinc-700" />
+          <p id="user-profile-handle" class="text-white font-bold text-lg"></p>
+          <p id="user-profile-bio" class="text-zinc-400 text-sm text-center px-4"></p>
+          <span id="user-profile-badge" class="text-xs px-3 py-1 rounded-full bg-pink-500/20 text-pink-400"></span>
+          <div class="flex gap-8 mt-2">
+            <div class="flex flex-col items-center">
+              <span id="user-profile-reels-count" class="text-white font-bold text-lg">0</span>
+              <span class="text-zinc-400 text-xs">Reels</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <span id="user-profile-followers-count" class="text-white font-bold text-lg">0</span>
+              <span class="text-zinc-400 text-xs">Followers</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <span id="user-profile-following-count" class="text-white font-bold text-lg">0</span>
+              <span class="text-zinc-400 text-xs">Following</span>
+            </div>
+          </div>
+        </div>
+        <div class="border-t border-zinc-800 mx-4 mb-3"></div>
+        <div id="user-profile-grid" class="grid grid-cols-3 gap-1 px-1 pb-4"></div>
+      </div>
+    </div>
+
+    <!-- User Reels Viewer -->
+    <div id="user-reels-page" class="hidden fixed inset-0 bg-black z-50 overflow-y-scroll snap-y snap-mandatory" style="scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+      <div id="user-reels-feed"></div>
+    </div>
+
+    <!-- Delete Reel Confirm Modal -->
+    <div id="delete-reel-modal" class="hidden fixed inset-0 bg-black/70 flex items-end justify-center z-50 px-4 pb-8">
+      <div class="bg-zinc-900 rounded-2xl w-full max-w-sm overflow-hidden">
+        <div class="flex flex-col items-center gap-2 px-6 pt-6 pb-4">
+          <div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mb-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </div>
+          <p class="text-white font-semibold text-lg">Delete Reel?</p>
+          <p class="text-zinc-400 text-sm text-center">This reel will be permanently deleted and cannot be recovered.</p>
+        </div>
+        <div class="flex border-t border-zinc-800">
+          <button onclick="cancelDeleteReel()" class="flex-1 py-4 text-zinc-300 font-medium hover:bg-zinc-800 transition">Cancel</button>
+          <div class="w-px bg-zinc-800"></div>
+          <button onclick="confirmDeleteReel()" class="flex-1 py-4 text-red-400 font-semibold hover:bg-zinc-800 transition">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="stats-modal" class="hidden fixed inset-0 bg-black/80 flex items-end justify-center z-50">
+      <div class="bg-zinc-900 rounded-t-2xl w-full max-w-md flex flex-col" style="max-height:80vh">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+          <h2 class="text-white font-bold text-lg">Reel Stats</h2>
+          <button onclick="document.getElementById('stats-modal').classList.add('hidden')" class="text-zinc-400 hover:text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div id="stats-list" class="overflow-y-auto flex flex-col gap-3 px-4 py-4" style="scrollbar-width:none"></div>
+      </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="edit-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
+      <div class="bg-zinc-900 rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4">
+        <h2 class="text-white font-bold text-lg text-center">Edit Profile</h2>
+        <p id="edit-error" class="text-red-400 text-sm hidden"></p>
+        <p id="edit-success" class="text-green-400 text-sm hidden"></p>
+        <!-- Avatar picker -->
+        <div class="flex flex-col items-center gap-2">
+          <div onclick="document.getElementById('edit-avatar-input').click()"
+            class="w-16 h-16 rounded-full bg-zinc-700 overflow-hidden cursor-pointer border-2 border-zinc-600 hover:border-pink-500">
+            <img id="edit-avatar-preview" src="" class="w-full h-full object-cover" />
+          </div>
+          <span class="text-zinc-400 text-xs">Tap to change photo</span>
+          <input id="edit-avatar-input" type="file" accept="image/*" class="hidden" onchange="previewEditAvatar(event)" />
+        </div>
+        <input id="edit-username" type="text" placeholder="Username" oninput="validateUsername(this)"
+          class="bg-zinc-800 text-white rounded-lg px-4 py-2 outline-none" />
+        <textarea id="edit-bio" placeholder="Bio" rows="2"
+          class="bg-zinc-800 text-white rounded-lg px-4 py-2 outline-none resize-none"></textarea>
+        <div class="flex gap-3">
+          <button onclick="saveEditProfile()"
+            class="flex-1 bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 rounded-lg">Save</button>
+          <button onclick="document.getElementById('edit-modal').classList.add('hidden')"
+            class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded-lg">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-black border-t border-zinc-800 flex items-center justify-around px-4 py-3">
+
+      <!-- Home -->
+      <button onclick="showPage('home')" id="nav-home" class="flex flex-col items-center gap-1 text-white">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7m-9 5v6h4v-6m-4 0H9m6 0h-2" />
+        </svg>
+        <span class="text-xs">Home</span>
+      </button>
+
+      <!-- Search -->
+      <button id="nav-search" onclick="showPage('search')" class="flex flex-col items-center gap-1 text-zinc-500">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+        </svg>
+        <span class="text-xs">Search</span>
+      </button>
+
+      <!-- Upload (center) -->
+      <button id="nav-upload-btn" onclick="pickFile()" class="flex flex-col items-center gap-1">
+        <div class="bg-pink-500 hover:bg-pink-600 rounded-xl px-4 py-2 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </div>
+      </button>
+
+      <!-- Reels -->
+      <button id="nav-reels" onclick="showPage('reels')" class="flex flex-col items-center gap-1 text-zinc-500">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0 1 21 8.723v6.554a1 1 0 0 1-1.447.894L15 14M3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z" />
+        </svg>
+        <span class="text-xs">Reels</span>
+      </button>
+
+      <!-- Account -->
+      <button id="nav-account" onclick="showPage('account')" class="flex flex-col items-center gap-1 text-zinc-500">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A9 9 0 1 1 18.88 17.804M15 11a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+        </svg>
+        <span class="text-xs">Account</span>
+      </button>
+
+    </nav>
+
+  </div>
+
+  <script>
+    const SUPABASE_URL    = 'https://jayhnleiiaymcszafbet.supabase.co'
+    const SUPABASE_KEY    = 'sb_publishable_5dJHMxRNMJM_T62UFu6Tmw_oDFGwOak'
+    const CLOUD_NAME      = 'dz8ojiw1o'
+    const CLOUD_API_KEY   = '752445781666117'
+    const CLOUD_SECRET    = 'rLvr7ltkwS-QYyimjtyAU3yAhkU'
+    const IK_URL_ENDPOINT = 'https://ik.imagekit.io/jwvpxfqvv'
+    const IK_PUBLIC_KEY   = 'public_z8bTk69vGeeeB/bmbvMAjcHEbHA='
+    const IK_PRIVATE_KEY  = 'private_N25ZuJrsqj7qlbadHGPExXBkHzc='
+    const NHOST_URL       = 'https://buljrtjwermutbqtvrbi.hasura.eu-central-1.nhost.run/v1/graphql'
+
+    const { createClient } = supabase
+    const client = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    let avatarFile = null
+    let currentUser = null
+
+    // ── Nhost GraphQL query helper ──
+    async function nhostQuery(query, variables = {}) {
+      const res = await fetch(NHOST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-hasura-role': 'public' },
+        body: JSON.stringify({ query, variables })
+      })
+      const json = await res.json()
+      return json.data
+    }
+
+    async function nhostMutate(query, variables = {}) {
+      const res = await fetch(NHOST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-hasura-role': 'public' },
+        body: JSON.stringify({ query, variables })
+      })
+      const json = await res.json()
+      if (json.errors) console.error('Nhost mutation error:', json.errors)
+      return json.data
+    }
+
+    // ── Skip auth ──
+    function skipAuth() {
+      currentUser = null
+      document.getElementById('auth-section').classList.add('hidden')
+      document.getElementById('upload-section').classList.remove('hidden')
+      document.getElementById('nav-upload-btn').classList.add('hidden')
+      document.getElementById('nav-search').classList.add('hidden')
+      document.getElementById('nav-reels').classList.add('hidden')
+      document.getElementById('nav-account').classList.add('hidden')
+      document.getElementById('guest-back-btn').classList.remove('hidden')
+      loadReels()
+    }
+
+    // ── Guest back to login ──
+    function guestBack() {
+      document.getElementById('upload-section').classList.add('hidden')
+      document.getElementById('auth-section').classList.remove('hidden')
+      document.getElementById('guest-back-btn').classList.add('hidden')
+    }
+
+    // ── Check session on load ──
+    window.addEventListener('load', async () => {
+      const { data: { session } } = await client.auth.getSession()
+      if (session) await showUploadSection(session.user)
+    })
+
+    // ── Tab switcher ──
+    function showTab(tab) {
+      const isLogin = tab === 'login'
+      document.getElementById('login-form').classList.toggle('hidden', !isLogin)
+      document.getElementById('signup-form').classList.toggle('hidden', isLogin)
+      document.getElementById('tab-login').className = `flex-1 py-2 font-semibold border-b-2 ${isLogin ? 'text-white border-pink-500' : 'text-zinc-400 border-zinc-700'}`
+      document.getElementById('tab-signup').className = `flex-1 py-2 font-semibold border-b-2 ${!isLogin ? 'text-white border-pink-500' : 'text-zinc-400 border-zinc-700'}`
+    }
+
+    // ── Account type selector ──
+    let selectedAccountType = 'reels'
+    function selectAccountType(type) {
+      selectedAccountType = type
+      const reelsBtn = document.getElementById('type-reels')
+      const proBtn   = document.getElementById('type-professional')
+      if (type === 'reels') {
+        reelsBtn.className = 'flex-1 flex flex-col items-center gap-1 border-2 border-pink-500 rounded-xl p-3 bg-pink-500/10'
+        reelsBtn.querySelector('svg').className = 'w-6 h-6 text-pink-400'
+        proBtn.className = 'flex-1 flex flex-col items-center gap-1 border-2 border-zinc-600 rounded-xl p-3'
+        proBtn.querySelector('svg').className = 'w-6 h-6 text-zinc-400'
+      } else {
+        proBtn.className = 'flex-1 flex flex-col items-center gap-1 border-2 border-pink-500 rounded-xl p-3 bg-pink-500/10'
+        proBtn.querySelector('svg').className = 'w-6 h-6 text-pink-400'
+        reelsBtn.className = 'flex-1 flex flex-col items-center gap-1 border-2 border-zinc-600 rounded-xl p-3'
+        reelsBtn.querySelector('svg').className = 'w-6 h-6 text-zinc-400'
+      }
+    }
+
+    // ── Username validation ──
+    function validateUsername(input) {
+      const hint = document.getElementById('username-hint')
+      // Strip any invalid characters as user types
+      input.value = input.value.replace(/[^a-zA-Z0-9_]/g, '')
+      if (input.value.length > 0 && !/^[a-zA-Z0-9_]+$/.test(input.value)) {
+        hint.classList.remove('hidden')
+      } else {
+        hint.classList.add('hidden')
+      }
+    }
+
+    // ── Preview avatar before upload ──
+    function previewAvatar(e) {
+      avatarFile = e.target.files[0]
+      if (!avatarFile) return
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        const img = document.getElementById('avatar-preview')
+        img.src = ev.target.result
+        img.classList.remove('hidden')
+        document.getElementById('avatar-placeholder').classList.add('hidden')
+      }
+      reader.readAsDataURL(avatarFile)
+    }
+
+    // ── Upload profile photo to ImageKit ──
+    async function uploadToImageKit(file) {
+      // Get auth signature from ImageKit
+      const authRes = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
+        method: 'POST',
+        headers: { 'Authorization': 'Basic ' + btoa(IK_PRIVATE_KEY + ':') },
+        body: (() => {
+          const fd = new FormData()
+          fd.append('file', file)
+          fd.append('fileName', `avatar_${Date.now()}`)
+          fd.append('folder', '/avatars')
+          fd.append('publicKey', IK_PUBLIC_KEY)
+          return fd
+        })()
+      })
+      const result = await authRes.json()
+      return result.url || null
+    }
+
+    // ── Show upload section ──
+    async function showUploadSection(user) {
+      currentUser = user
+      document.getElementById('auth-section').classList.add('hidden')
+      document.getElementById('upload-section').classList.remove('hidden')
+      document.getElementById('guest-back-btn').classList.add('hidden')
+
+      // Restore all nav buttons first
+      document.getElementById('nav-search').classList.remove('hidden')
+      document.getElementById('nav-reels').classList.remove('hidden')
+      document.getElementById('nav-account').classList.remove('hidden')
+      document.getElementById('nav-upload-btn').classList.remove('hidden')
+
+      const { data: profile } = await client
+        .from('profiles')
+        .select('account_type')
+        .eq('id', user.id)
+        .single()
+
+      // reels-only account: hide upload button
+      if (profile?.account_type === 'reels') {
+        document.getElementById('nav-upload-btn').classList.add('hidden')
+      }
+
+      loadReels()
+    }
+
+    function showAuthSection() {
+      document.getElementById('upload-section').classList.add('hidden')
+      document.getElementById('auth-section').classList.remove('hidden')
+    }
+
+    // ── Login (supports email or username) ──
+    async function handleLogin(e) {
+      e.preventDefault()
+      const btn = document.getElementById('login-btn')
+      const errorEl = document.getElementById('login-error')
+      errorEl.classList.add('hidden')
+      btn.disabled = true
+      btn.textContent = 'Logging in...'
+
+      let identifier = document.getElementById('login-identifier').value.trim()
+      const password  = document.getElementById('login-password').value
+
+      // If not an email, look up email from username in profiles
+      if (!identifier.includes('@')) {
+        const { data: profile, error: profileError } = await client
+          .from('profiles')
+          .select('email')
+          .eq('username', identifier)
+          .single()
+
+        if (profileError || !profile) {
+          errorEl.textContent = 'Username not found.'
+          errorEl.classList.remove('hidden')
+          btn.disabled = false
+          btn.textContent = 'Login'
+          return
+        }
+        identifier = profile.email
+      }
+
+      const { data, error } = await client.auth.signInWithPassword({ email: identifier, password })
+
+      if (error) {
+        errorEl.textContent = error.message
+        errorEl.classList.remove('hidden')
+        btn.disabled = false
+        btn.textContent = 'Login'
+      } else {
+        await showUploadSection(data.user)
+      }
+    }
+
+    // ── Signup ──
+    async function handleSignup(e) {
+      e.preventDefault()
+      const btn = document.getElementById('signup-btn')
+      const errorEl = document.getElementById('signup-error')
+      const successEl = document.getElementById('signup-success')
+      errorEl.classList.add('hidden')
+      successEl.classList.add('hidden')
+      btn.disabled = true
+      btn.textContent = 'Creating account...'
+
+      const email    = document.getElementById('signup-email').value
+      const password = document.getElementById('signup-password').value
+      const username = document.getElementById('signup-username').value.trim()
+      const bio      = document.getElementById('signup-bio').value
+
+      // Validate username
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        errorEl.textContent = 'Username can only contain letters, numbers and underscores — no spaces or special characters.'
+        errorEl.classList.remove('hidden')
+        btn.disabled = false
+        btn.textContent = 'Sign Up'
+        return
+      }
+
+      // 1. Upload avatar to ImageKit if selected
+      let avatarUrl = null
+      if (avatarFile) {
+        btn.textContent = 'Uploading photo...'
+        avatarUrl = await uploadToImageKit(avatarFile)
+      }
+
+      // 2. Sign up with Supabase
+      const { data, error } = await client.auth.signUp({ email, password })
+
+      if (error) {
+        errorEl.textContent = error.message
+        errorEl.classList.remove('hidden')
+        btn.disabled = false
+        btn.textContent = 'Sign Up'
+        return
+      }
+
+      // 3. Sign in immediately so session is active for upsert
+      const { data: signInData, error: signInError } = await client.auth.signInWithPassword({ email, password })
+      if (signInError) {
+        errorEl.textContent = signInError.message
+        errorEl.classList.remove('hidden')
+        btn.disabled = false
+        btn.textContent = 'Sign Up'
+        return
+      }
+
+      // 4. Save username, bio, avatar_url, account_type to profiles table
+      const { error: upsertError } = await client.from('profiles').upsert({
+        id: signInData.user.id,
+        email,
+        username,
+        bio,
+        avatar_url: avatarUrl,
+        account_type: selectedAccountType
+      })
+
+      if (upsertError) console.error('Profile save error:', upsertError)
+
+      // Email confirmation is off — log in directly
+      await showUploadSection(signInData.user)
+    }
+
+    // ── Bottom nav page switcher ──
+    async function showPage(page) {
+      const navIds = ['nav-home', 'nav-search', 'nav-reels', 'nav-account']
+      const pageMap = { home: 'nav-home', search: 'nav-search', reels: 'nav-reels', account: 'nav-account' }
+      navIds.forEach(id => {
+        const el = document.getElementById(id)
+        if (el) el.className = `flex flex-col items-center gap-1 ${id === pageMap[page] ? 'text-white' : 'text-zinc-500'}`
+      })
+      const reelsPage   = document.getElementById('reels-page')
+      const accountPage = document.getElementById('account-page')
+      const searchPage  = document.getElementById('search-page')
+      const header      = document.querySelector('header')
+      const progressWrap = document.getElementById('progress-bar-wrap')
+
+      const homeFeed = document.getElementById('home-feed')
+
+      // Stop all videos when leaving reels page
+      if (page !== 'reels') {
+        document.querySelectorAll('#reels-viewer-feed video').forEach(v => v.pause())
+        reelsPage.classList.add('hidden')
+      }
+
+      if (page === 'reels') {
+        homeFeed.classList.add('hidden')
+        searchPage.classList.add('hidden')
+        accountPage.classList.add('hidden')
+        header.classList.add('hidden')
+        reelsPage.classList.remove('hidden')
+        await loadReelsViewer()
+      } else if (page === 'account') {
+        homeFeed.classList.add('hidden')
+        searchPage.classList.add('hidden')
+        header.classList.remove('hidden')
+        accountPage.classList.remove('hidden')
+        await loadAccountPage()
+      } else if (page === 'search') {
+        homeFeed.classList.add('hidden')
+        accountPage.classList.add('hidden')
+        header.classList.remove('hidden')
+        searchPage.classList.remove('hidden')
+        document.getElementById('search-input').focus()
+      } else {
+        homeFeed.classList.remove('hidden')
+        searchPage.classList.add('hidden')
+        header.classList.remove('hidden')
+        accountPage.classList.add('hidden')
+      }
+    }
+
+    // ── Load account page data ──
+    async function loadAccountPage() {
+      if (!currentUser) return
+      const { data: profile } = await client
+        .from('profiles')
+        .select('username, avatar_url, bio, account_type')
+        .eq('id', currentUser.id)
+        .single()
+
+      if (!profile) return
+
+      document.getElementById('account-username').textContent = '@' + (profile.username || '')
+      document.getElementById('account-bio').textContent = profile.bio || ''
+      document.getElementById('account-type-badge').textContent = profile.account_type === 'professional' ? '✦ Professional' : '▶ Reels Only'
+      document.getElementById('stats-btn-wrap').classList.toggle('hidden', profile.account_type !== 'professional')
+
+      const avatarEl = document.getElementById('account-avatar')
+      if (profile.avatar_url) avatarEl.src = profile.avatar_url
+
+      // Fetch user reels
+      const { data: reels } = await client
+        .from('reels')
+        .select('id, url')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false })
+
+      document.getElementById('account-reels-count').textContent = reels?.length || 0
+
+      const grid = document.getElementById('account-reels-grid')
+      if (!reels || reels.length === 0) {
+        grid.innerHTML = '<p class="col-span-3 text-zinc-500 text-sm text-center py-6">No reels uploaded yet.</p>'
+      } else {
+        grid.innerHTML = reels.map(r => `
+          <div class="relative aspect-[9/16] bg-zinc-900 overflow-hidden" id="reel-tile-${r.id}">
+            <video src="${r.url}" class="w-full h-full object-cover" muted playsinline
+              onmouseenter="this.play().catch(()=>{})" onmouseleave="this.pause();this.currentTime=0"></video>
+            <button onclick="deleteReel('${r.id}')"
+              class="absolute top-1 right-1 bg-black/60 rounded-full p-1 text-red-400 hover:text-red-300">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>`).join('')
+      }
+
+      // Followers & following count from Nhost
+      const followersData = await nhostQuery(`
+        query($uid: uuid!) {
+          followers(where: { following_id: { _eq: $uid } }) { follower_id }
+          following: followers(where: { follower_id: { _eq: $uid } }) { following_id }
+        }
+      `, { uid: currentUser.id })
+      console.log('followers nhostData:', JSON.stringify(followersData))
+      document.getElementById('account-followers-count').textContent = followersData?.followers?.length ?? 0
+      document.getElementById('account-following-count').textContent = followersData?.following?.length ?? 0
+    }
+
+    let _reelToDelete = null
+    function deleteReel(reelId) {
+      _reelToDelete = reelId
+      document.getElementById('delete-reel-modal').classList.remove('hidden')
+    }
+    function cancelDeleteReel() {
+      _reelToDelete = null
+      document.getElementById('delete-reel-modal').classList.add('hidden')
+    }
+    async function confirmDeleteReel() {
+      if (!_reelToDelete) return
+      document.getElementById('delete-reel-modal').classList.add('hidden')
+      const { data, error } = await client.from('reels').delete().eq('id', _reelToDelete).eq('user_id', currentUser.id).select()
+      console.log('delete result:', data, error)
+      if (error) { alert('Delete failed: ' + error.message); return }
+      if (!data || data.length === 0) { alert('Delete failed: No rows deleted. Check Supabase RLS — add a DELETE policy for reels table: auth.uid() = user_id'); return }
+      _reelToDelete = null
+      await loadAccountPage()
+    }
+
+    // ── Logout ──
+    async function handleLogout() {
+      await client.auth.signOut()
+      showAuthSection()
+    }
+
+    // ── Trigger reel file picker ──
+    function pickFile() {
+      document.getElementById('file-input').click()
+    }
+
+    // ── Upload reel to Cloudinary then save URL to Supabase ──
+    async function handleUpload(e) {
+      const file = e.target.files[0]
+      if (!file) return
+
+      const errorEl     = document.getElementById('upload-error')
+      const progressWrap = document.getElementById('progress-bar-wrap')
+      const progressBar  = document.getElementById('progress-bar')
+      const progressText = document.getElementById('progress-text')
+
+      errorEl.classList.add('hidden')
+      progressWrap.classList.remove('hidden')
+      progressBar.style.width = '0%'
+
+      const timestamp = Math.round(Date.now() / 1000)
+      const signature = await sha1(`folder=reels&timestamp=${timestamp}${CLOUD_SECRET}`)
+
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('timestamp', timestamp)
+      formData.append('signature', signature)
+      formData.append('api_key', CLOUD_API_KEY)
+      formData.append('folder', 'reels')
+
+      const xhr = new XMLHttpRequest()
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable) {
+          const pct = Math.round((ev.loaded / ev.total) * 100)
+          progressBar.style.width = pct + '%'
+          progressText.textContent = `Uploading... ${pct}%`
+        }
+      }
+      xhr.onload = async () => {
+        const result = JSON.parse(xhr.responseText)
+        progressWrap.classList.add('hidden')
+        e.target.value = ''
+        if (result.secure_url) {
+          const { data: { user } } = await client.auth.getUser()
+          await client.from('reels').insert({ url: result.secure_url, user_id: user.id })
+          loadReels()
+        } else {
+          errorEl.textContent = 'Upload failed. Try again.'
+          errorEl.classList.remove('hidden')
+        }
+      }
+      xhr.onerror = () => {
+        progressWrap.classList.add('hidden')
+        errorEl.textContent = 'Upload failed. Try again.'
+        errorEl.classList.remove('hidden')
+      }
+      xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`)
+      xhr.send(formData)
+    }
+
+    // ── SHA1 for Cloudinary signature ──
+    async function sha1(str) {
+      const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str))
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+    }
+
+    // ── Load fullscreen reels viewer ──
+    let reelsViewerLoaded = false
+    async function loadReelsViewer() {
+      if (reelsViewerLoaded) return
+      reelsViewerLoaded = true
+      const feed = document.getElementById('reels-viewer-feed')
+      feed.innerHTML = '<p class="text-zinc-500 text-center pt-20">Loading...</p>'
+
+      const { data, error } = await client.from('reels').select('*').order('created_at', { ascending: false })
+      if (error || !data || data.length === 0) {
+        feed.innerHTML = '<p class="text-zinc-500 text-center pt-20">No reels yet.</p>'
+        return
+      }
+
+      const userIds = [...new Set(data.map(r => r.user_id))]
+      const { data: profiles } = await client.from('profiles').select('id, username, avatar_url, account_type').in('id', userIds)
+      const profileMap = {}
+      profiles?.forEach(p => profileMap[p.id] = p)
+      const filtered = data.filter(r => profileMap[r.user_id]?.account_type === 'professional')
+      if (filtered.length === 0) {
+        feed.innerHTML = '<p class="text-zinc-500 text-center pt-20">No reels yet.</p>'
+        return
+      }
+
+      const isGuest = !currentUser
+      feed.innerHTML = filtered.map(r => {
+        const username = profileMap[r.user_id]?.username || 'unknown'
+        const avatar   = profileMap[r.user_id]?.avatar_url || ''
+        return `
+        <div class="relative w-full bg-black flex items-center justify-center" style="height:100dvh;scroll-snap-align:start">
+          <video id="rv-${r.id}" src="${r.url}" loop playsinline muted
+            controlsList="nodownload nofullscreen noremoteplayback" disablePictureInPicture
+            onclick="this.paused ? this.play().catch(()=>{}) : this.pause()"
+            class="w-full h-full object-contain cursor-pointer"></video>
+
+          <!-- Top back button -->
+          <button onclick="closeReelsViewer()" class="absolute top-4 left-4 bg-black/40 rounded-full p-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <!-- Mute button -->
+          <button id="rv-mute-btn-${r.id}" onclick="toggleRvMute('${r.id}')" class="absolute top-4 right-4 bg-black/40 rounded-full p-2">
+            <svg id="rv-mute-icon-${r.id}" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+            </svg>
+          </button>
+
+          <!-- Bottom overlay: user info + actions -->
+          <div class="absolute bottom-20 left-0 right-0 px-4 flex items-end justify-between">
+            <!-- Left: user info -->
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center gap-2">
+                ${avatar ? `<img src="${avatar}" class="w-8 h-8 rounded-full object-cover border border-white" />` : `<div class="w-8 h-8 rounded-full bg-zinc-600"></div>`}
+                <span class="text-white font-semibold text-sm drop-shadow">@${username}</span>
+              </div>
+            </div>
+            <!-- Right: like + comment -->
+            <div class="flex flex-col items-center gap-4">
+              <button id="rv-like-btn-${r.id}" onclick="${isGuest ? `alert('Login to like')` : `toggleRvLike('${r.id}')`}"
+                class="flex flex-col items-center gap-1 ${isGuest ? 'opacity-50' : ''}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" id="rv-like-icon-${r.id}" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" />
+                </svg>
+                <span id="rv-like-count-${r.id}" class="text-white text-xs">...</span>
+              </button>
+              <button onclick="${isGuest ? `alert('Login to comment')` : `toggleRvComments('${r.id}')`}"
+                class="flex flex-col items-center gap-1 ${isGuest ? 'opacity-50' : ''}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <span id="rv-comment-count-${r.id}" class="text-white text-xs">...</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Comments drawer -->
+          ${!isGuest ? `
+          <div id="rv-comments-${r.id}" class="hidden absolute bottom-0 left-0 right-0 bg-zinc-900/95 rounded-t-2xl px-4 pt-4 pb-6 max-h-64 flex flex-col gap-3">
+            <div id="rv-comments-list-${r.id}" class="flex flex-col gap-2 overflow-y-auto flex-1"></div>
+            <div class="flex gap-2">
+              <input id="rv-comment-input-${r.id}" type="text" placeholder="Add a comment..."
+                class="flex-1 bg-zinc-800 text-white text-sm rounded-lg px-3 py-2 outline-none" />
+              <button onclick="postRvComment('${r.id}')" class="bg-pink-500 text-white text-sm px-3 py-2 rounded-lg">Post</button>
+            </div>
+          </div>` : ''}
+        </div>`
+      }).join('')
+
+      // Setup IntersectionObserver to auto-play visible video
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const video = entry.target.querySelector('video')
+          if (!video) return
+          if (entry.isIntersecting) {
+            video.play().catch(() => {})
+            // Load engagement for this reel
+            const id = video.id.replace('rv-', '')
+            loadRvEngagement(id, !currentUser)
+            trackView(id)
+          } else {
+            video.pause()
+          }
+        })
+      }, { threshold: 0.7 })
+
+      document.querySelectorAll('#reels-viewer-feed > div').forEach(el => observer.observe(el))
+    }
+
+    function closeReelsViewer() {
+      document.querySelectorAll('#reels-viewer-feed video').forEach(v => v.pause())
+      document.getElementById('reels-page').classList.add('hidden')
+      document.querySelector('header').classList.remove('hidden')
+      reelsViewerLoaded = false
+      document.getElementById('reels-viewer-feed').innerHTML = ''
+      // Reset nav
+      document.getElementById('nav-reels').className = 'flex flex-col items-center gap-1 text-zinc-500'
+      document.getElementById('nav-home').className = 'flex flex-col items-center gap-1 text-white'
+    }
+
+    function toggleRvMute(id) {
+      const video = document.getElementById(`rv-${id}`)
+      const icon  = document.getElementById(`rv-mute-icon-${id}`)
+      video.muted = !video.muted
+      icon.innerHTML = video.muted
+        ? `<path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />`
+        : `<path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M9 9H5a1 1 0 00-1 1v4a1 1 0 001 1h4l3 3V6L9 9z" />`
+    }
+
+    async function loadRvEngagement(reelId, isGuest) {
+      const nhostData = await nhostQuery(`
+        query($id: uuid!) {
+          likes(where: { reel_id: { _eq: $id } }) { user_id }
+          comments(where: { reel_id: { _eq: $id } }, order_by: { created_at: asc }) { id user_id text }
+        }
+      `, { id: reelId })
+      const likes    = nhostData?.likes    || []
+      const comments = nhostData?.comments || []
+      const liked    = currentUser && likes.some(l => l.user_id === currentUser.id)
+
+      const likeCount    = document.getElementById(`rv-like-count-${reelId}`)
+      const likeIcon     = document.getElementById(`rv-like-icon-${reelId}`)
+      const likeBtn      = document.getElementById(`rv-like-btn-${reelId}`)
+      const commentCount = document.getElementById(`rv-comment-count-${reelId}`)
+
+      if (likeCount) likeCount.textContent = likes.length
+      if (commentCount) commentCount.textContent = comments.length
+      if (likeIcon) {
+        likeIcon.setAttribute('fill', liked ? 'red' : 'none')
+        likeIcon.setAttribute('stroke', liked ? 'red' : 'white')
+      }
+      if (likeBtn) likeBtn.setAttribute('onclick', isGuest ? `alert('Login to like')` : `toggleRvLike('${reelId}')`)
+    }
+
+    async function toggleRvLike(reelId) {
+      if (!currentUser) return
+      const icon  = document.getElementById(`rv-like-icon-${reelId}`)
+      const count = document.getElementById(`rv-like-count-${reelId}`)
+      const liked = icon.getAttribute('fill') === 'red'
+      if (liked) {
+        await nhostMutate(`mutation($r:uuid!,$u:uuid!){delete_likes(where:{reel_id:{_eq:$r},user_id:{_eq:$u}}){affected_rows}}`, { r: reelId, u: currentUser.id })
+        icon.setAttribute('fill', 'none')
+        icon.setAttribute('stroke', 'white')
+        count.textContent = parseInt(count.textContent) - 1
+      } else {
+        await nhostMutate(`mutation($r:uuid!,$u:uuid!){insert_likes_one(object:{reel_id:$r,user_id:$u}){id}}`, { r: reelId, u: currentUser.id })
+        icon.setAttribute('fill', 'red')
+        icon.setAttribute('stroke', 'red')
+        count.textContent = parseInt(count.textContent) + 1
+      }
+      document.getElementById(`rv-like-btn-${reelId}`).setAttribute('onclick', `toggleRvLike('${reelId}')`)
+    }
+
+    function toggleRvComments(reelId) {
+      document.getElementById(`rv-comments-${reelId}`)?.classList.toggle('hidden')
+    }
+
+    async function postRvComment(reelId) {
+      if (!currentUser) return
+      const input = document.getElementById(`rv-comment-input-${reelId}`)
+      const text = input.value.trim()
+      if (!text) return
+      input.value = ''
+      await nhostMutate(`mutation($r:uuid!,$u:uuid!,$t:String!){insert_comments_one(object:{reel_id:$r,user_id:$u,text:$t}){id}}`, { r: reelId, u: currentUser.id, t: text })
+      const list = document.getElementById(`rv-comments-list-${reelId}`)
+      const noComment = list?.querySelector('p')
+      if (noComment) noComment.remove()
+      const div = document.createElement('div')
+      div.className = 'text-sm'
+      div.innerHTML = `<span class="text-pink-400 font-semibold">${currentUser.id.slice(0,6)}</span> <span class="text-zinc-300">${text}</span>`
+      list?.appendChild(div)
+      const count = document.getElementById(`rv-comment-count-${reelId}`)
+      if (count) count.textContent = parseInt(count.textContent) + 1
+    }
+
+    // ── Load reels first, then lazy load likes/comments per card ──
+    async function loadReels() {
+      const feed = document.getElementById('reels-feed')
+      feed.innerHTML = '<div class="flex items-center justify-center h-screen"><p class="text-zinc-500 text-center">Loading reels...</p></div>'
+
+      const { data, error } = await client
+        .from('reels')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error || !data || data.length === 0) {
+        feed.innerHTML = '<div class="flex items-center justify-center h-screen"><p class="text-zinc-500 text-center">No reels yet. Upload one!</p></div>'
+        return
+      }
+
+      const userIds = [...new Set(data.map(r => r.user_id))]
+      const { data: profiles } = await client
+        .from('profiles')
+        .select('id, username, avatar_url, account_type')
+        .in('id', userIds)
+
+      const profileMap = {}
+      profiles?.forEach(p => profileMap[p.id] = p)
+
+      const filtered = data.filter(r => profileMap[r.user_id]?.account_type === 'professional')
+      if (filtered.length === 0) {
+        feed.innerHTML = '<div class="flex items-center justify-center h-screen"><p class="text-zinc-500 text-center">No reels yet. Upload one!</p></div>'
+        return
+      }
+
+      const isGuest = !currentUser
+
+      // Render Instagram/Facebook-style card feed
+      feed.innerHTML = filtered.map(r => {
+        const username = profileMap[r.user_id]?.username || 'unknown'
+        const avatar   = profileMap[r.user_id]?.avatar_url || ''
+        return `
+        <div class="w-full bg-zinc-900 border-b border-zinc-800">
+
+          <!-- Top: user info -->
+          <div class="flex items-center gap-3 px-4 py-3">
+            ${avatar ? `<img src="${avatar}" class="w-10 h-10 rounded-full object-cover border border-zinc-700" />` : `<div class="w-10 h-10 rounded-full bg-zinc-700"></div>`}
+            <span class="text-white font-semibold text-sm">@${username}</span>
+          </div>
+
+          <!-- Video in original aspect ratio -->
+          <div class="relative w-full bg-black">
+            <video id="video-${r.id}" src="${r.url}" loop playsinline muted
+              controlsList="nodownload nofullscreen noremoteplayback" disablePictureInPicture
+              onclick="this.paused ? this.play().catch(()=>{}) : this.pause()"
+              class="w-full object-contain cursor-pointer" style="max-height:75vh"></video>
+            <!-- Mute button -->
+            <button id="mute-btn-${r.id}" onclick="toggleMute('${r.id}')" class="absolute bottom-3 right-3 bg-black/50 rounded-full p-1.5">
+              <svg id="mute-icon-${r.id}" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Bottom: like + comment -->
+          <div class="flex items-center gap-5 px-4 py-3">
+            <button id="like-btn-${r.id}" onclick="${isGuest ? `alert('Login to like')` : `toggleLike('${r.id}', false)`}"
+              class="flex items-center gap-2 ${isGuest ? 'opacity-50' : 'hover:text-pink-400'} text-zinc-300 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" id="like-icon-${r.id}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" />
+              </svg>
+              <span id="like-count-${r.id}" class="text-sm">...</span>
+            </button>
+            <button onclick="${isGuest ? `alert('Login to comment')` : `openCommentSheet('${r.id}')`}"
+              class="flex items-center gap-2 ${isGuest ? 'opacity-50' : 'hover:text-blue-400'} text-zinc-300 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <span id="comment-count-${r.id}" class="text-sm">...</span>
+            </button>
+          </div>
+
+        </div>`
+      }).join('')
+
+      // Setup IntersectionObserver to auto-play visible video
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const video = entry.target.querySelector('video')
+          if (!video) return
+          if (entry.isIntersecting) {
+            video.play().catch(() => {})
+            // Load engagement for this reel
+            const id = video.id.replace('video-', '')
+            loadReelEngagement(id, !currentUser)
+            trackView(id)
+          } else {
+            video.pause()
+          }
+        })
+      }, { threshold: 0.7 })
+
+      document.querySelectorAll('#reels-feed > div').forEach(el => observer.observe(el))
+    }
+
+    // ── Lazy load likes & comments for a single reel ──
+    async function loadReelEngagement(reelId, isGuest) {
+      const nhostData = await nhostQuery(`
+        query($id: uuid!) {
+          likes(where: { reel_id: { _eq: $id } }) { user_id }
+          comments(where: { reel_id: { _eq: $id } }, order_by: { created_at: asc }) { id user_id text }
+        }
+      `, { id: reelId })
+
+      const likes    = nhostData?.likes    || []
+      const comments = nhostData?.comments || []
+      const liked    = currentUser && likes.some(l => l.user_id === currentUser.id)
+
+      const likeBtn      = document.getElementById(`like-btn-${reelId}`)
+      const countEl      = document.getElementById(`like-count-${reelId}`)
+      const commentCount = document.getElementById(`comment-count-${reelId}`)
+      const likeIcon     = document.getElementById(`like-icon-${reelId}`)
+
+      if (!likeBtn) return
+
+      countEl.textContent = likes.length
+      commentCount.textContent = comments.length
+      likeIcon.setAttribute('fill', liked ? 'red' : 'none')
+      likeIcon.setAttribute('stroke', liked ? 'red' : 'currentColor')
+      likeBtn.setAttribute('onclick', isGuest ? `alert('Login to like reels')` : `toggleLike('${reelId}', ${liked})`)
+    }
+
+    // ── Edit profile helpers ──
+    let editAvatarFile = null
+    function previewEditAvatar(e) {
+      editAvatarFile = e.target.files[0]
+      if (!editAvatarFile) return
+      const reader = new FileReader()
+      reader.onload = ev => document.getElementById('edit-avatar-preview').src = ev.target.result
+      reader.readAsDataURL(editAvatarFile)
+    }
+
+    async function showEditProfile() {
+      const { data: profile } = await client
+        .from('profiles').select('username, bio, avatar_url').eq('id', currentUser.id).single()
+      document.getElementById('edit-username').value = profile?.username || ''
+      document.getElementById('edit-bio').value = profile?.bio || ''
+      document.getElementById('edit-avatar-preview').src = profile?.avatar_url || ''
+      document.getElementById('edit-error').classList.add('hidden')
+      document.getElementById('edit-success').classList.add('hidden')
+      editAvatarFile = null
+      document.getElementById('edit-modal').classList.remove('hidden')
+    }
+
+    async function saveEditProfile() {
+      const errorEl   = document.getElementById('edit-error')
+      const successEl = document.getElementById('edit-success')
+      errorEl.classList.add('hidden')
+      successEl.classList.add('hidden')
+
+      const username = document.getElementById('edit-username').value.trim()
+      const bio      = document.getElementById('edit-bio').value.trim()
+
+      if (!username || !/^[a-zA-Z0-9_]+$/.test(username)) {
+        errorEl.textContent = 'Invalid username — letters, numbers and _ only.'
+        errorEl.classList.remove('hidden')
+        return
+      }
+
+      // Check username not taken by another user
+      const { data: existing } = await client
+        .from('profiles').select('id').eq('username', username).neq('id', currentUser.id).single()
+      if (existing) {
+        errorEl.textContent = 'Username already taken.'
+        errorEl.classList.remove('hidden')
+        return
+      }
+
+      // Upload new avatar if changed
+      let avatarUrl = null
+      if (editAvatarFile) avatarUrl = await uploadToImageKit(editAvatarFile)
+
+      const updates = { username, bio }
+      if (avatarUrl) updates.avatar_url = avatarUrl
+
+      const { error } = await client.from('profiles').update(updates).eq('id', currentUser.id)
+      if (error) {
+        errorEl.textContent = 'Failed to save. Try again.'
+        errorEl.classList.remove('hidden')
+        return
+      }
+
+      successEl.textContent = 'Profile updated!'
+      successEl.classList.remove('hidden')
+      setTimeout(() => {
+        document.getElementById('edit-modal').classList.add('hidden')
+        loadAccountPage()
+      }, 1000)
+    }
+
+    // ── Toggle mute/unmute ──
+    function toggleMute(reelId) {
+      const video = document.getElementById(`video-${reelId}`)
+      const icon  = document.getElementById(`mute-icon-${reelId}`)
+      if (!video) return
+      video.muted = !video.muted
+      icon.innerHTML = video.muted
+        ? `<path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />`
+        : `<path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M9 9H5a1 1 0 00-1 1v4a1 1 0 001 1h4l3 3V6L9 9z" />`
+    }
+
+    // ── Toggle like ──
+    async function toggleLike(reelId, isLiked) {
+      if (!currentUser) return
+      if (isLiked) {
+        await nhostMutate(`
+          mutation($reel_id: uuid!, $user_id: uuid!) {
+            delete_likes(where: { reel_id: { _eq: $reel_id }, user_id: { _eq: $user_id } }) { affected_rows }
+          }
+        `, { reel_id: reelId, user_id: currentUser.id })
+      } else {
+        await nhostMutate(`
+          mutation($reel_id: uuid!, $user_id: uuid!) {
+            insert_likes_one(object: { reel_id: $reel_id, user_id: $user_id }) { id }
+          }
+        `, { reel_id: reelId, user_id: currentUser.id })
+      }
+      const btn      = document.getElementById(`like-btn-${reelId}`)
+      const countEl  = document.getElementById(`like-count-${reelId}`)
+      const likeIcon = document.getElementById(`like-icon-${reelId}`)
+      const newLiked = !isLiked
+      countEl.textContent = parseInt(countEl.textContent) + (newLiked ? 1 : -1)
+      likeIcon.setAttribute('fill', newLiked ? 'red' : 'none')
+      likeIcon.setAttribute('stroke', newLiked ? 'red' : 'currentColor')
+      btn.setAttribute('onclick', `toggleLike('${reelId}', ${newLiked})`)
+    }
+
+    // ── Instagram-style Comment Sheet Functions ──
+    let currentReelForComments = null
+    
+    async function openCommentSheet(reelId) {
+      if (!currentUser) return
+      currentReelForComments = reelId
+      
+      // Set user avatar in comment input
+      const { data: profile } = await client
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', currentUser.id)
+        .single()
+      
+      const myAvatar = document.getElementById('comment-sheet-my-avatar')
+      if (profile?.avatar_url) {
+        myAvatar.src = profile.avatar_url
+      }
+      
+      // Load comments with usernames and avatars
+      await loadCommentsWithProfiles(reelId)
+      
+      // Show sheet with animation
+      const backdrop = document.getElementById('comment-sheet-backdrop')
+      const sheet = document.getElementById('comment-sheet')
+      
+      backdrop.classList.remove('hidden')
+      sheet.classList.remove('hidden')
+      
+      // Trigger animation
+      setTimeout(() => {
+        backdrop.style.opacity = '1'
+        sheet.style.transform = 'translateY(0)'
+      }, 10)
+      
+      // Setup post button
+      const postBtn = document.getElementById('comment-sheet-post-btn')
+      const input = document.getElementById('comment-sheet-input')
+      
+      postBtn.onclick = () => postCommentFromSheet()
+      input.onkeypress = (e) => {
+        if (e.key === 'Enter') postCommentFromSheet()
+      }
+    }
+    
+    function closeCommentSheet() {
+      const backdrop = document.getElementById('comment-sheet-backdrop')
+      const sheet = document.getElementById('comment-sheet')
+      
+      backdrop.style.opacity = '0'
+      sheet.style.transform = 'translateY(100%)'
+      
+      setTimeout(() => {
+        backdrop.classList.add('hidden')
+        sheet.classList.add('hidden')
+        currentReelForComments = null
+        document.getElementById('comment-sheet-input').value = ''
+      }, 300)
+    }
+    
+    async function loadCommentsWithProfiles(reelId) {
+      const nhostData = await nhostQuery(`
+        query($id: uuid!) {
+          comments(where: { reel_id: { _eq: $id } }, order_by: { created_at: asc }) {
+            id user_id text created_at
+          }
+        }
+      `, { id: reelId })
+
+      const comments = nhostData?.comments || []
+      const list = document.getElementById('comment-sheet-list')
+
+      if (comments.length === 0) {
+        list.innerHTML = '<div class="flex items-center justify-center py-8"><p class="text-zinc-500 text-center">No comments yet.<br>Be the first to comment!</p></div>'
+        return
+      }
+
+      const userIds = [...new Set(comments.map(c => c.user_id))]
+      const { data: profiles } = await client.from('profiles').select('id, username, avatar_url').in('id', userIds)
+      const profileMap = {}
+      profiles?.forEach(p => profileMap[p.id] = p)
+
+      list.innerHTML = comments.map(c => {
+        const profile  = profileMap[c.user_id]
+        const username = profile?.username || 'Unknown'
+        const avatar   = profile?.avatar_url || ''
+        const isOwner  = currentUser && currentUser.id === c.user_id
+        return `
+        <div class="flex items-start gap-3" id="comment-item-${c.id}">
+          ${avatar ? `<img src="${avatar}" class="w-8 h-8 rounded-full object-cover flex-shrink-0" />` : `<div class="w-8 h-8 rounded-full bg-zinc-600 flex-shrink-0"></div>`}
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-white font-semibold text-sm">@${username}</span>
+              <span class="text-zinc-500 text-xs">${new Date(c.created_at).toLocaleDateString()}</span>
+              ${isOwner ? `<button onclick="deleteComment('${c.id}')"
+                class="ml-auto text-zinc-500 hover:text-red-400 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>` : ''}
+            </div>
+            <p class="text-zinc-300 text-sm leading-relaxed">${c.text}</p>
+          </div>
+        </div>`
+      }).join('')
+    }
+    
+    async function postCommentFromSheet() {
+      if (!currentUser || !currentReelForComments) return
+      const input = document.getElementById('comment-sheet-input')
+      const text = input.value.trim()
+      if (!text) return
+      input.value = ''
+      await nhostMutate(`
+        mutation($reel_id: uuid!, $user_id: uuid!, $text: String!) {
+          insert_comments_one(object: { reel_id: $reel_id, user_id: $user_id, text: $text }) { id created_at }
+        }
+      `, { reel_id: currentReelForComments, user_id: currentUser.id, text })
+      await loadCommentsWithProfiles(currentReelForComments)
+      const commentCount = document.getElementById(`comment-count-${currentReelForComments}`)
+      if (commentCount) commentCount.textContent = parseInt(commentCount.textContent) + 1
+    }
+
+    async function deleteComment(commentId) {
+      if (!currentUser) return
+      const data = await nhostMutate(`
+        mutation($id: uuid!) {
+          delete_comments(where: { id: { _eq: $id } }) { affected_rows }
+        }
+      `, { id: commentId })
+      if (data?.delete_comments?.affected_rows > 0) {
+        const el = document.getElementById(`comment-item-${commentId}`)
+        if (el) el.remove()
+        const commentCount = document.getElementById(`comment-count-${currentReelForComments}`)
+        if (commentCount) commentCount.textContent = Math.max(0, parseInt(commentCount.textContent) - 1)
+      }
+    }
+    // ── Search users ──
+    let searchTimer = null
+    async function searchUsers() {
+      const q = document.getElementById('search-input').value.trim()
+      const results = document.getElementById('search-results')
+      if (!q) { results.innerHTML = ''; return }
+      clearTimeout(searchTimer)
+      searchTimer = setTimeout(async () => {
+        const { data: users } = await client
+          .from('profiles')
+          .select('id, username, avatar_url, account_type')
+          .ilike('username', `%${q}%`)
+          .in('account_type', ['professional', 'reels'])
+          .neq('id', currentUser?.id)
+          .limit(20)
+
+        if (!users || users.length === 0) {
+          results.innerHTML = '<p class="text-zinc-500 text-sm text-center py-6">No users found.</p>'
+          return
+        }
+
+        // Check which ones current user already follows
+        const userIds = users.map(u => u.id)
+        const nhostData = currentUser ? await nhostQuery(`
+          query($follower_id: uuid!, $ids: [uuid!]!) {
+            followers(where: { follower_id: { _eq: $follower_id }, following_id: { _in: $ids } }) { following_id }
+          }
+        `, { follower_id: currentUser.id, ids: userIds }) : null
+        const followingSet = new Set((nhostData?.followers || []).map(f => f.following_id))
+
+        results.innerHTML = users.map(u => {
+          const isFollowing = followingSet.has(u.id)
+          const badge = u.account_type === 'professional' ? '<span class="text-xs px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-400">✦ Pro</span>' : '<span class="text-xs px-2 py-0.5 rounded-full bg-zinc-700 text-zinc-300">▶ Reels</span>'
+          return `
+          <div class="flex items-center gap-3 bg-zinc-900 rounded-xl px-4 py-3">
+            ${u.avatar_url ? `<img src="${u.avatar_url}" class="w-11 h-11 rounded-full object-cover flex-shrink-0" />` : `<div class="w-11 h-11 rounded-full bg-zinc-700 flex-shrink-0"></div>`}
+            <div class="flex-1 min-w-0 cursor-pointer" onclick="openUserProfile('${u.id}', '${u.username}')">
+              <p class="text-white font-semibold text-sm truncate">@${u.username}</p>
+              <div class="mt-0.5">${badge}</div>
+            </div>
+            ${currentUser ? `<button id="follow-btn-${u.id}" onclick="toggleFollow('${u.id}', ${isFollowing})"
+              class="px-4 py-1.5 rounded-lg text-sm font-semibold transition ${isFollowing ? 'bg-zinc-700 text-zinc-300' : 'bg-pink-500 text-white hover:bg-pink-600'}">
+              ${isFollowing ? 'Following' : 'Follow'}
+            </button>` : ''}
+          </div>`
+        }).join('')
+      }, 300)
+    }
+
+    async function toggleFollow(targetId, isFollowing) {
+      if (!currentUser) return
+      const btn = document.getElementById(`follow-btn-${targetId}`)
+      if (isFollowing) {
+        await nhostMutate(`
+          mutation($follower_id: uuid!, $following_id: uuid!) {
+            delete_followers(where: { follower_id: { _eq: $follower_id }, following_id: { _eq: $following_id } }) { affected_rows }
+          }
+        `, { follower_id: currentUser.id, following_id: targetId })
+        btn.textContent = 'Follow'
+        btn.className = 'px-4 py-1.5 rounded-lg text-sm font-semibold transition bg-pink-500 text-white hover:bg-pink-600'
+        btn.onclick = () => toggleFollow(targetId, false)
+      } else {
+        await nhostMutate(`
+          mutation($follower_id: uuid!, $following_id: uuid!) {
+            insert_followers_one(object: { follower_id: $follower_id, following_id: $following_id }) { follower_id }
+          }
+        `, { follower_id: currentUser.id, following_id: targetId })
+        btn.textContent = 'Following'
+        btn.className = 'px-4 py-1.5 rounded-lg text-sm font-semibold transition bg-zinc-700 text-zinc-300'
+        btn.onclick = () => toggleFollow(targetId, true)
+      }
+    }
+
+    // ── User profile page ──
+
+    async function openUserProfile(userId, username) {
+      document.getElementById('user-profile-username').textContent = '@' + username
+      document.getElementById('user-profile-grid').innerHTML = '<p class="col-span-3 text-zinc-500 text-sm text-center py-6">Loading...</p>'
+      document.getElementById('user-profile-page').classList.remove('hidden')
+
+      const [{ data: profile }, { data: reels }, followersData] = await Promise.all([
+        client.from('profiles').select('username, avatar_url, bio, account_type').eq('id', userId).single(),
+        client.from('reels').select('id, url').eq('user_id', userId).order('created_at', { ascending: false }),
+        nhostQuery(`query($uid: uuid!) {
+          followers(where: { following_id: { _eq: $uid } }) { follower_id }
+          following: followers(where: { follower_id: { _eq: $uid } }) { following_id }
+        }`, { uid: userId })
+      ])
+
+      document.getElementById('user-profile-avatar').src = profile?.avatar_url || ''
+      document.getElementById('user-profile-handle').textContent = '@' + (profile?.username || username)
+      document.getElementById('user-profile-bio').textContent = profile?.bio || ''
+      document.getElementById('user-profile-badge').textContent = profile?.account_type === 'professional' ? '✦ Professional' : '▶ Reels Only'
+      document.getElementById('user-profile-reels-count').textContent = reels?.length || 0
+      document.getElementById('user-profile-followers-count').textContent = followersData?.followers?.length ?? 0
+      document.getElementById('user-profile-following-count').textContent = followersData?.following?.length ?? 0
+
+      if (!reels || reels.length === 0) {
+        document.getElementById('user-profile-grid').innerHTML = '<p class="col-span-3 text-zinc-500 text-sm text-center py-6">No reels yet.</p>'
+        return
+      }
+
+      const uname = profile?.username || username
+      document.getElementById('user-profile-grid').innerHTML = reels.map((r, i) => `
+        <div class="relative aspect-[9/16] bg-zinc-900 overflow-hidden cursor-pointer" onclick="openUserReels(${i}, '${userId}', '${uname}')">
+          <video src="${r.url}" class="w-full h-full object-cover" muted playsinline
+            onmouseenter="this.play().catch(()=>{})" onmouseleave="this.pause();this.currentTime=0"></video>
+          <div class="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/30 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+        </div>`).join('')
+
+      window._userReels = reels
+      window._userReelsInfo = { userId, username: uname }
+    }
+
+    function closeUserProfile() {
+      document.getElementById('user-profile-page').classList.add('hidden')
+    }
+
+    function openUserReels(startIndex, userId, username) {
+      const reels = window._userReels
+      if (!reels) return
+      const isGuest = !currentUser
+      const info = window._userReelsInfo
+      const avatar = document.getElementById('user-profile-avatar')?.src || ''
+      const feed = document.getElementById('user-reels-feed')
+
+      feed.innerHTML = reels.map(r => `
+        <div class="relative w-full bg-black flex items-center justify-center" style="height:100dvh;scroll-snap-align:start">
+          <video id="ur-${r.id}" src="${r.url}" loop playsinline muted
+            onclick="this.paused ? this.play().catch(()=>{}) : this.pause()"
+            class="w-full h-full object-contain cursor-pointer"></video>
+
+          <!-- back -->
+          <button onclick="closeUserReels()" class="absolute top-4 left-4 bg-black/40 rounded-full p-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+          </button>
+
+          <!-- mute -->
+          <button id="ur-mute-btn-${r.id}" onclick="toggleUrMute('${r.id}')" class="absolute top-4 right-4 bg-black/40 rounded-full p-2">
+            <svg id="ur-mute-icon-${r.id}" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+            </svg>
+          </button>
+
+          <!-- bottom overlay -->
+          <div class="absolute bottom-20 left-0 right-0 px-4 flex items-end justify-between">
+            <div class="flex items-center gap-2">
+              ${avatar ? `<img src="${avatar}" class="w-8 h-8 rounded-full object-cover border border-white" />` : `<div class="w-8 h-8 rounded-full bg-zinc-600"></div>`}
+              <span class="text-white font-semibold text-sm drop-shadow">@${username}</span>
+            </div>
+            <div class="flex flex-col items-center gap-4">
+              <button id="ur-like-btn-${r.id}" onclick="${isGuest ? `alert('Login to like')` : `toggleRvLike('${r.id}')`}"
+                class="flex flex-col items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" id="ur-like-icon-${r.id}" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" />
+                </svg>
+                <span id="ur-like-count-${r.id}" class="text-white text-xs">...</span>
+              </button>
+              <button onclick="${isGuest ? `alert('Login to comment')` : `openCommentSheet('${r.id}')`}"
+                class="flex flex-col items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <span id="ur-comment-count-${r.id}" class="text-white text-xs">...</span>
+              </button>
+            </div>
+          </div>
+        </div>`).join('')
+
+      document.getElementById('user-reels-page').classList.remove('hidden')
+
+      setTimeout(() => {
+        const el = feed.children[startIndex]
+        if (el) el.scrollIntoView()
+      }, 50)
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const video = entry.target.querySelector('video')
+          if (!video) return
+          if (entry.isIntersecting) {
+            video.play().catch(() => {})
+            const id = video.id.replace('ur-', '')
+            trackView(id)
+            loadUrEngagement(id, isGuest)
+          } else {
+            video.pause()
+          }
+        })
+      }, { threshold: 0.7 })
+      Array.from(feed.children).forEach(el => observer.observe(el))
+    }
+
+    async function loadUrEngagement(reelId, isGuest) {
+      const data = await nhostQuery(`
+        query($id: uuid!) {
+          likes_aggregate(where: { reel_id: { _eq: $id } }) { aggregate { count } }
+          comments_aggregate(where: { reel_id: { _eq: $id } }) { aggregate { count } }
+          ${!isGuest ? `my_like: likes(where: { reel_id: { _eq: $id }, user_id: { _eq: "${currentUser.id}" } }) { reel_id }` : ''}
+        }
+      `, { id: reelId })
+      const likeCount = data?.likes_aggregate?.aggregate?.count ?? 0
+      const commentCount = data?.comments_aggregate?.aggregate?.count ?? 0
+      const liked = (data?.my_like?.length ?? 0) > 0
+      const likeCountEl = document.getElementById(`ur-like-count-${reelId}`)
+      const commentCountEl = document.getElementById(`ur-comment-count-${reelId}`)
+      const likeIcon = document.getElementById(`ur-like-icon-${reelId}`)
+      if (likeCountEl) likeCountEl.textContent = likeCount
+      if (commentCountEl) commentCountEl.textContent = commentCount
+      if (likeIcon) { likeIcon.setAttribute('fill', liked ? 'red' : 'none'); likeIcon.setAttribute('stroke', liked ? 'red' : 'white') }
+    }
+
+    function toggleUrMute(reelId) {
+      const video = document.getElementById(`ur-${reelId}`)
+      if (!video) return
+      video.muted = !video.muted
+      const icon = document.getElementById(`ur-mute-icon-${reelId}`)
+      if (icon) icon.setAttribute('stroke', video.muted ? 'gray' : 'white')
+    }
+
+    function closeUserReels() {
+      document.querySelectorAll('#user-reels-feed video').forEach(v => v.pause())
+      document.getElementById('user-reels-page').classList.add('hidden')
+    }
+
+    // ── Track view ──
+    const _viewedReels = new Set()
+    async function trackView(reelId) {
+      if (_viewedReels.has(reelId)) return
+      _viewedReels.add(reelId)
+      await client.rpc('increment_views', { reel_id: reelId })
+    }
+
+    // ── Stats modal ──
+    async function showStats() {
+      document.getElementById('stats-modal').classList.remove('hidden')
+      const list = document.getElementById('stats-list')
+      list.innerHTML = '<p class="text-zinc-500 text-sm text-center py-4">Loading...</p>'
+      const { data: reels } = await client
+        .from('reels')
+        .select('id, url, views')
+        .eq('user_id', currentUser.id)
+        .order('views', { ascending: false })
+      if (!reels || reels.length === 0) {
+        list.innerHTML = '<p class="text-zinc-500 text-sm text-center py-4">No reels yet.</p>'
+        return
+      }
+      list.innerHTML = reels.map((r, i) => `
+        <div class="flex items-center gap-3 bg-zinc-800 rounded-xl p-3">
+          <video src="${r.url}" class="w-14 h-20 object-cover rounded-lg flex-shrink-0" muted playsinline></video>
+          <div class="flex-1">
+            <p class="text-zinc-400 text-xs mb-1">Reel #${i + 1}</p>
+            <div class="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <span class="text-white font-bold text-lg">${r.views ?? 0}</span>
+              <span class="text-zinc-400 text-sm">views</span>
+            </div>
+          </div>
+        </div>`).join('')
+    }
+
+  </script>
+
+</body>
+</html>
