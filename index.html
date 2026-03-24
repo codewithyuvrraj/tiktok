@@ -36,6 +36,8 @@
         </button>
         <button type="button" onclick="skipAuth()"
           class="text-zinc-400 hover:text-white text-sm text-center py-1">Skip for now →</button>
+        <button type="button" onclick="window.location.href='reset-password.html'"
+          class="text-pink-400 hover:text-pink-300 text-sm text-center py-1">Forgot Password?</button>
       </form>
 
       <!-- Signup Form -->
@@ -119,6 +121,20 @@
 
     <p id="upload-error" class="text-red-400 text-sm text-center mt-4 hidden"></p>
     <input id="file-input" type="file" accept="video/*" class="hidden" onchange="handleUpload(event)" />
+
+    <!-- Caption Modal -->
+    <div id="caption-modal" class="hidden fixed inset-0 bg-black/80 flex items-end justify-center z-50">
+      <div class="bg-zinc-900 rounded-t-2xl w-full max-w-md p-5 flex flex-col gap-4">
+        <h2 class="text-white font-bold text-lg text-center">Add Caption</h2>
+        <video id="caption-preview" class="w-full rounded-xl max-h-48 object-contain bg-black" muted playsinline autoplay loop></video>
+        <textarea id="caption-input" placeholder="Write a caption..." rows="3"
+          class="bg-zinc-800 text-white rounded-xl px-4 py-3 outline-none resize-none placeholder-zinc-500 text-sm"></textarea>
+        <div class="flex gap-3">
+          <button onclick="cancelCaption()" class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white py-3 rounded-xl font-semibold">Cancel</button>
+          <button onclick="submitCaption()" class="flex-1 bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl font-semibold">Post</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Home Feed (TikTok-style snap scroll) -->
     <div id="home-feed" class="fixed inset-0 bg-zinc-950 overflow-y-scroll" style="top:57px;bottom:64px;scrollbar-width:none;-ms-overflow-style:none">
@@ -411,15 +427,22 @@
       document.getElementById('nav-search').classList.add('hidden')
       document.getElementById('nav-reels').classList.add('hidden')
       document.getElementById('nav-account').classList.add('hidden')
+      document.getElementById('home-feed').classList.add('hidden')
       document.getElementById('guest-back-btn').classList.remove('hidden')
-      loadReels()
+      document.querySelector('header').classList.add('hidden')
+      document.getElementById('reels-page').classList.remove('hidden')
+      loadReelsViewer()
     }
 
     // ── Guest back to login ──
     function guestBack() {
+      document.querySelectorAll('#reels-viewer-feed video').forEach(v => v.pause())
+      document.getElementById('reels-page').classList.add('hidden')
+      document.querySelector('header').classList.remove('hidden')
       document.getElementById('upload-section').classList.add('hidden')
       document.getElementById('auth-section').classList.remove('hidden')
       document.getElementById('guest-back-btn').classList.add('hidden')
+      reelsViewerLoaded = false
     }
 
     // ── Check session on load ──
@@ -690,6 +713,7 @@
         searchPage.classList.add('hidden')
         header.classList.remove('hidden')
         accountPage.classList.add('hidden')
+        loadReels()
       }
     }
 
@@ -745,7 +769,6 @@
           following: followers(where: { follower_id: { _eq: $uid } }) { following_id }
         }
       `, { uid: currentUser.id })
-      console.log('followers nhostData:', JSON.stringify(followersData))
       document.getElementById('account-followers-count').textContent = followersData?.followers?.length ?? 0
       document.getElementById('account-following-count').textContent = followersData?.following?.length ?? 0
     }
@@ -779,6 +802,26 @@
     // ── Trigger reel file picker ──
     function pickFile() {
       document.getElementById('file-input').click()
+    }
+
+    function cancelCaption() {
+      window._pendingUploadUrl = null
+      document.getElementById('caption-modal').classList.add('hidden')
+      document.getElementById('caption-preview').src = ''
+    }
+
+    async function submitCaption() {
+      const url = window._pendingUploadUrl
+      if (!url) return
+      const caption = document.getElementById('caption-input').value.trim()
+      document.getElementById('caption-modal').classList.add('hidden')
+      document.getElementById('caption-preview').src = ''
+      const { data: { user } } = await client.auth.getUser()
+      await client.from('reels').insert({ url, user_id: user.id, caption })
+      window._pendingUploadUrl = null
+      window._reelsCacheData = null
+      reelsViewerLoaded = false
+      loadReels()
     }
 
     // ── Upload reel to Cloudinary then save URL to Supabase ──
@@ -818,9 +861,10 @@
         progressWrap.classList.add('hidden')
         e.target.value = ''
         if (result.secure_url) {
-          const { data: { user } } = await client.auth.getUser()
-          await client.from('reels').insert({ url: result.secure_url, user_id: user.id })
-          loadReels()
+          window._pendingUploadUrl = result.secure_url
+          document.getElementById('caption-preview').src = result.secure_url
+          document.getElementById('caption-input').value = ''
+          document.getElementById('caption-modal').classList.remove('hidden')
         } else {
           errorEl.textContent = 'Upload failed. Try again.'
           errorEl.classList.remove('hidden')
@@ -898,6 +942,7 @@
                 ${avatar ? `<img src="${avatar}" class="w-8 h-8 rounded-full object-cover border border-white" />` : `<div class="w-8 h-8 rounded-full bg-zinc-600"></div>`}
                 <span class="text-white font-semibold text-sm drop-shadow">@${username}</span>
               </div>
+              ${r.caption ? `<p class="text-white text-xs drop-shadow max-w-[200px]">${r.caption}</p>` : ''}
             </div>
             <!-- Right: like + comment -->
             <div class="flex flex-col items-center gap-4">
@@ -1040,6 +1085,7 @@
     // ── Load reels first, then lazy load likes/comments per card ──
     async function loadReels() {
       const feed = document.getElementById('reels-feed')
+      if (window._reelsCacheData) { renderReelsFeed(feed, window._reelsCacheData); return }
       feed.innerHTML = '<div class="flex items-center justify-center h-screen"><p class="text-zinc-500 text-center">Loading reels...</p></div>'
 
       const { data, error } = await client
@@ -1067,36 +1113,34 @@
         return
       }
 
-      const isGuest = !currentUser
+      window._reelsCacheData = { filtered, profileMap }
+      renderReelsFeed(feed, window._reelsCacheData)
+    }
 
-      // Render Instagram/Facebook-style card feed
+    let _feedObserver = null
+    function renderReelsFeed(feed, { filtered, profileMap }) {
+      const isGuest = !currentUser
       feed.innerHTML = filtered.map(r => {
         const username = profileMap[r.user_id]?.username || 'unknown'
         const avatar   = profileMap[r.user_id]?.avatar_url || ''
         return `
         <div class="w-full bg-zinc-900 border-b border-zinc-800">
-
-          <!-- Top: user info -->
           <div class="flex items-center gap-3 px-4 py-3">
             ${avatar ? `<img src="${avatar}" class="w-10 h-10 rounded-full object-cover border border-zinc-700" />` : `<div class="w-10 h-10 rounded-full bg-zinc-700"></div>`}
             <span class="text-white font-semibold text-sm">@${username}</span>
           </div>
-
-          <!-- Video in original aspect ratio -->
           <div class="relative w-full bg-black">
             <video id="video-${r.id}" src="${r.url}" loop playsinline muted
               controlsList="nodownload nofullscreen noremoteplayback" disablePictureInPicture
               onclick="this.paused ? this.play().catch(()=>{}) : this.pause()"
               class="w-full object-contain cursor-pointer" style="max-height:75vh"></video>
-            <!-- Mute button -->
             <button id="mute-btn-${r.id}" onclick="toggleMute('${r.id}')" class="absolute bottom-3 right-3 bg-black/50 rounded-full p-1.5">
               <svg id="mute-icon-${r.id}" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
               </svg>
             </button>
           </div>
-
-          <!-- Bottom: like + comment -->
+          ${r.caption ? `<p class="text-zinc-300 text-sm px-4 pt-2 pb-1">${r.caption}</p>` : ''}
           <div class="flex items-center gap-5 px-4 py-3">
             <button id="like-btn-${r.id}" onclick="${isGuest ? `alert('Login to like')` : `toggleLike('${r.id}', false)`}"
               class="flex items-center gap-2 ${isGuest ? 'opacity-50' : 'hover:text-pink-400'} text-zinc-300 transition">
@@ -1113,18 +1157,16 @@
               <span id="comment-count-${r.id}" class="text-sm">...</span>
             </button>
           </div>
-
         </div>`
       }).join('')
 
-      // Setup IntersectionObserver to auto-play visible video
-      const observer = new IntersectionObserver((entries) => {
+      if (_feedObserver) _feedObserver.disconnect()
+      _feedObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
           const video = entry.target.querySelector('video')
           if (!video) return
           if (entry.isIntersecting) {
             video.play().catch(() => {})
-            // Load engagement for this reel
             const id = video.id.replace('video-', '')
             loadReelEngagement(id, !currentUser)
             trackView(id)
@@ -1133,8 +1175,7 @@
           }
         })
       }, { threshold: 0.7 })
-
-      document.querySelectorAll('#reels-feed > div').forEach(el => observer.observe(el))
+      document.querySelectorAll("#reels-feed > div").forEach(el => _feedObserver.observe(el))
     }
 
     // ── Lazy load likes & comments for a single reel ──
