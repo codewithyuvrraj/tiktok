@@ -421,6 +421,7 @@
     // ── Skip auth ──
     function skipAuth() {
       currentUser = null
+      client.auth.signOut() // clear session so back button shows clean login
       document.getElementById('auth-section').classList.add('hidden')
       document.getElementById('upload-section').classList.remove('hidden')
       document.getElementById('nav-upload-btn').classList.add('hidden')
@@ -437,12 +438,28 @@
     // ── Guest back to login ──
     function guestBack() {
       document.querySelectorAll('#reels-viewer-feed video').forEach(v => v.pause())
+      document.getElementById('reels-viewer-feed').innerHTML = ''
+      reelsViewerLoaded = false
+
+      // Hide all pages
       document.getElementById('reels-page').classList.add('hidden')
+      document.getElementById('home-feed').classList.add('hidden')
+      document.getElementById('account-page').classList.add('hidden')
+      document.getElementById('search-page').classList.add('hidden')
+
+      // Reset nav visibility
+      document.getElementById('nav-upload-btn').classList.remove('hidden')
+      document.getElementById('nav-search').classList.remove('hidden')
+      document.getElementById('nav-reels').classList.remove('hidden')
+      document.getElementById('nav-account').classList.remove('hidden')
+
       document.querySelector('header').classList.remove('hidden')
+      document.getElementById('guest-back-btn').classList.add('hidden')
       document.getElementById('upload-section').classList.add('hidden')
       document.getElementById('auth-section').classList.remove('hidden')
-      document.getElementById('guest-back-btn').classList.add('hidden')
-      reelsViewerLoaded = false
+
+      // Clear any session so account details don't leak
+      currentUser = null
     }
 
     // ── Check session on load ──
@@ -744,6 +761,16 @@
         .order('created_at', { ascending: false })
 
       document.getElementById('account-reels-count').textContent = reels?.length || 0
+      // Hide reels count and grid for reels-only accounts
+      const reelsSection = document.getElementById('account-reels-count').closest('.flex.flex-col.items-center')
+      const reelsGrid = document.getElementById('account-reels-grid')
+      if (profile.account_type !== 'professional') {
+        reelsSection.classList.add('hidden')
+        reelsGrid.classList.add('hidden')
+      } else {
+        reelsSection.classList.remove('hidden')
+        reelsGrid.classList.remove('hidden')
+      }
 
       const grid = document.getElementById('account-reels-grid')
       if (!reels || reels.length === 0) {
@@ -1540,12 +1567,22 @@
       document.getElementById('user-profile-handle').textContent = '@' + (profile?.username || username)
       document.getElementById('user-profile-bio').textContent = profile?.bio || ''
       document.getElementById('user-profile-badge').textContent = profile?.account_type === 'professional' ? '✦ Professional' : '▶ Reels Only'
-      document.getElementById('user-profile-reels-count').textContent = reels?.length || 0
+      // Hide reels count and grid for reels-only accounts
+      const urReelsSection = document.getElementById('user-profile-reels-count').closest('.flex.flex-col.items-center')
+      if (profile?.account_type !== 'professional') {
+        urReelsSection.classList.add('hidden')
+        document.getElementById('user-profile-grid').innerHTML = ''
+      } else {
+        urReelsSection.classList.remove('hidden')
+        document.getElementById('user-profile-reels-count').textContent = reels?.length || 0
+      }
       document.getElementById('user-profile-followers-count').textContent = followersData?.followers?.length ?? 0
       document.getElementById('user-profile-following-count').textContent = followersData?.following?.length ?? 0
 
-      if (!reels || reels.length === 0) {
-        document.getElementById('user-profile-grid').innerHTML = '<p class="col-span-3 text-zinc-500 text-sm text-center py-6">No reels yet.</p>'
+      if (profile?.account_type !== 'professional' || !reels || reels.length === 0) {
+        if (profile?.account_type === 'professional') {
+          document.getElementById('user-profile-grid').innerHTML = '<p class="col-span-3 text-zinc-500 text-sm text-center py-6">No reels yet.</p>'
+        }
         return
       }
 
